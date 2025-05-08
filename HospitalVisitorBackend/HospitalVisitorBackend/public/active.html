@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Active Visitors</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 2em auto;
+        }
+
+        nav {
+            margin-bottom: 1em;
+        }
+
+            nav ul {
+                display: flex;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                border-bottom: 2px solid #ccc;
+            }
+
+            nav li {
+                margin-right: 1em;
+            }
+
+            nav a {
+                text-decoration: none;
+                padding: 0.5em 1em;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                border-radius: 4px 4px 0 0;
+                background: #f0f0f0;
+                color: #000;
+            }
+
+                nav a.active {
+                    background: #fff;
+                    font-weight: bold;
+                }
+
+        #controls {
+            display: flex;
+            gap: 1em;
+            margin-bottom: 1em;
+        }
+
+        #search {
+            flex: 1;
+            padding: 0.5em;
+        }
+
+        #refresh {
+            padding: 0.5em 1em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 0.5em;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        /* Department code highlight colors */
+        .dept-A, .dept-B, .dept-C {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .dept-D, .dept-E {
+            color: green;
+            font-weight: bold;
+        }
+
+        .dept-H {
+            color: hotpink;
+            font-weight: bold;
+        }
+
+        .dept-K {
+            color: blue;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/checkin.html">Check In</a></li>
+            <li><a href="/checkout.html">Check Out</a></li>
+            <li><a href="/active.html" class="active">Active Visitors</a></li>
+        </ul>
+    </nav>
+
+    <h1>Currently Checked-In Visitors</h1>
+
+    <div id="controls">
+        <input id="search" type="text" placeholder="Search by ID, name, department, room..." />
+        <button id="refresh">Refresh List</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First</th>
+                <th>Last</th>
+                <th>Room</th>
+                <th>Check-In</th>
+            </tr>
+        </thead>
+        <tbody id="visitors"></tbody>
+    </table>
+
+    <script>
+        let visitorsCache = [];
+
+        function highlightDept(roomStr) {
+            const parts = roomStr.split('-');
+            if (parts.length !== 3) return roomStr;
+            const [floor, dept, num] = parts;
+            const m = dept.match(/\(([A-Z])\)/);
+            if (!m) return roomStr;
+            const letter = m[1];
+            const styledDept = dept.replace(
+                `(${letter})`,
+                `(<span class="dept-${letter}">${letter}</span>)`
+            );
+            return `${floor}-${styledDept}-${num}`;
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('visitors');
+            tbody.innerHTML = '';
+            data.forEach(v => {
+                const tr = document.createElement('tr');
+                ['visitorId', 'firstName', 'lastName', 'room', 'checkIn'].forEach(key => {
+                    const td = document.createElement('td');
+                    if (key === 'room') td.innerHTML = highlightDept(v.room);
+                    else td.textContent = v[key];
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadVisitors() {
+            // cache-busting timestamp and no-store
+            const url = '/active?ts=' + Date.now();
+            const res = await fetch(url, { cache: 'no-store' });
+            visitorsCache = await res.json();
+            renderTable(visitorsCache);
+        }
+
+        document.getElementById('refresh').addEventListener('click', () => {
+            document.getElementById('search').value = '';
+            loadVisitors();
+        });
+
+        document.getElementById('search').addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            renderTable(visitorsCache.filter(v =>
+                v.visitorId.toString().includes(q) ||
+                v.firstName.toLowerCase().includes(q) ||
+                v.lastName.toLowerCase().includes(q) ||
+                v.room.toLowerCase().includes(q) ||
+                v.checkIn.toLowerCase().includes(q)
+            ));
+        });
+
+        // initial load on page open
+        window.addEventListener('load', loadVisitors);
+    </script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+﻿<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Hospital Visitor Check-Out</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 400px;
+            margin: 2em auto;
+        }
+
+        label, input {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5em;
+        }
+
+        button {
+            padding: 0.5em 1em;
+            margin-right: 0.5em;
+            margin-top: 0.5em;
+        }
+
+        #status {
+            margin-top: 1em;
+            font-weight: bold;
+        }
+
+        /* Tabs CSS */
+        nav {
+            margin-bottom: 1em;
+        }
+
+            nav ul {
+                display: flex;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                border-bottom: 2px solid #ccc;
+            }
+
+            nav li {
+                margin-right: 1em;
+            }
+
+            nav a {
+                text-decoration: none;
+                padding: 0.5em 1em;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                border-radius: 4px 4px 0 0;
+                background: #f0f0f0;
+                color: #000;
+            }
+
+                nav a.active {
+                    background: #fff;
+                    font-weight: bold;
+                }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/checkin.html">Check In</a></li>
+            <li><a href="/checkout.html" class="active">Check Out</a></li>
+            <li><a href="/active.html">Active Visitors</a></li>
+        </ul>
+    </nav>
+
+    <h1>Visitor Check-Out</h1>
+    <form id="checkoutForm">
+        <label>
+            Visitor ID
+            <input id="visitorId" name="visitorId" type="number" required />
+        </label>
+        <button type="submit">Check Out</button>
+        <button type="button" id="clearBtn">Clear All</button>
+    </form>
+
+    <!-- Bulk check-out button -->
+    <button type="button" id="checkoutAllBtn">Check Out All Active</button>
+
+    <div id="status"></div>
+
+    <script>
+        const form = document.getElementById('checkoutForm');
+        const statusDiv = document.getElementById('status');
+        const clearBtn = document.getElementById('clearBtn');
+        const checkoutAllBtn = document.getElementById('checkoutAllBtn');
+
+        // Single check-out
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('visitorId').value, 10);
+            const res = await fetch('/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ visitorId: id })
+            });
+            statusDiv.textContent =
+                res.ok ? '✓ Checked out visitor ' + id + '!' : '✖ Error checking out.';
+        });
+
+        // Clear the form/status
+        clearBtn.addEventListener('click', () => {
+            form.reset();
+            statusDiv.textContent = '';
+            document.getElementById('visitorId').focus();
+        });
+
+        // Bulk check-out: sequentially to avoid ODBC busy error
+        checkoutAllBtn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to check out ALL active visitors?')) return;
+            statusDiv.textContent = 'Processing...';
+            try {
+                const resActive = await fetch('/active?ts=' + Date.now(), { cache: 'no-store' });
+                const visitors = await resActive.json();
+                if (!visitors.length) {
+                    statusDiv.textContent = 'No active visitors to check out.';
+                    return;
+                }
+                for (const v of visitors) {
+                    const res = await fetch('/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ visitorId: v.visitorId })
+                    });
+                    if (!res.ok) {
+                        throw new Error('Checkout failed for ' + v.visitorId);
+                    }
+                }
+                statusDiv.textContent = `✓ Checked out ${visitors.length} visitor(s)!`;
+                form.reset();
+            } catch (err) {
+                console.error(err);
+                statusDiv.textContent = '✖ Error during bulk check-out.';
+            }
+        });
+    </script>
+</body>
+</html>

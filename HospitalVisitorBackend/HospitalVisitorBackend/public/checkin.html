@@ -1,0 +1,199 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Hospital Visitor Check-In</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 400px;
+            margin: 2em auto;
+        }
+
+        nav {
+            margin-bottom: 1em;
+        }
+
+            nav ul {
+                display: flex;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                border-bottom: 2px solid #ccc;
+            }
+
+            nav li {
+                margin-right: 1em;
+            }
+
+            nav a {
+                text-decoration: none;
+                padding: 0.5em 1em;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                border-radius: 4px 4px 0 0;
+                background: #f0f0f0;
+                color: #000;
+            }
+
+                nav a.active {
+                    background: #fff;
+                    font-weight: bold;
+                }
+
+        form {
+            display: grid;
+            grid-template-columns: 1fr;
+            row-gap: 0.75em;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0.5em;
+            font-size: 1em;
+        }
+
+        button {
+            margin-top: 0.5em;
+        }
+
+        #status {
+            margin-top: 1em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/checkin.html" class="active">Check In</a></li>
+            <li><a href="/checkout.html">Check Out</a></li>
+            <li><a href="/active.html">Active Visitors</a></li>
+        </ul>
+    </nav>
+
+    <h1>Visitor Check-In</h1>
+    <form id="checkinForm">
+        <label>
+            First Name
+            <input name="firstName" required />
+        </label>
+
+        <label>
+            Last Name
+            <input name="lastName" required />
+        </label>
+
+        <label>
+            Phone
+            <input name="phone" required />
+        </label>
+
+        <label>
+            Floor
+            <select name="floor" required>
+                <option value="" disabled selected>Select floor</option>
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+            </select>
+        </label>
+
+        <label>
+            Department
+            <select name="department" required>
+                <option value="" disabled selected>Select department</option>
+                <option>(A) PICU</option>
+                <option>(C) General Medicine</option>
+                <option>(C) Inter.Care</option>
+                <option>(D) Burn</option>
+                <option>(D) Neuroscience</option>
+                <option>(D) Progressive</option>
+                <option>(D) Surgical</option>
+                <option>(E) Medical</option>
+                <option>(E) Surgical</option>
+                <option>(H) CVICU</option>
+                <option>(H) NICU</option>
+                <option>(K) HEMA</option>
+                <option>(K) ITU</option>
+            </select>
+        </label>
+
+        <label>
+            Room Number
+            <select name="roomNum" required>
+                <option value="" disabled selected>Select room</option>
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>7</option>
+                <option>8</option>
+                <option>9</option>
+                <option>10</option>
+                <option>11</option>
+                <option>12</option>
+                <option>13</option>
+                <option>14</option>
+                <option>15</option>
+                <option>16</option>
+                <option>17</option>
+                <option>18</option>
+                <option>19</option>
+                <option>20</option>
+                <option>21</option>
+                <option>22</option>
+                <option>23</option>
+                <option>24</option>
+                <option>25</option>
+                <option>26</option>
+                <option>27</option>
+                <option>28</option>
+                <option>29</option>
+                <option>30</option>
+            </select>
+        </label>
+
+        <button type="submit">Check In</button>
+    </form>
+
+    <div id="status"></div>
+
+    <script>
+        document.getElementById('checkinForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const form = e.target;
+            const room = `${form.floor.value}-${form.department.value}-${form.roomNum.value}`;
+
+            const data = {
+                firstName: form.firstName.value,
+                lastName: form.lastName.value,
+                phone: form.phone.value,
+                room: room
+            };
+
+            const res = await fetch('/checkin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            document.getElementById('status').textContent =
+                res.ok ? '✓ Checked in!' : '✖ Error checking in.';
+
+            form.reset();
+        });
+    </script>
+</body>
+</html>

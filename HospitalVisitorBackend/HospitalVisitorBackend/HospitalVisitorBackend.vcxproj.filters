@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="public">
+      <UniqueIdentifier>{e09ebd88-7d3e-493e-9d51-7f9d7e44369c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HospitalVisitorBackend.cpp">
@@ -25,6 +28,15 @@
   <ItemGroup>
     <None Include="..\..\.gitignore" />
     <None Include="..\..\README.md" />
+    <None Include="checkout.html">
+      <Filter>public</Filter>
+    </None>
+    <None Include="active.html">
+      <Filter>public</Filter>
+    </None>
+    <None Include="checkin.html">
+      <Filter>public</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DBManager.h">

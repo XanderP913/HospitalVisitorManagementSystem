@@ -1,9 +1,14 @@
 #pragma once
+
+// Prevent windows.h macros from conflicting
+#define NOMINMAX
 #include <windows.h>
-#undef max
-#undef min
 #include <sql.h>
 #include <sqlext.h>
+#undef max
+#undef min
+
+#include <nlohmann/json.hpp>
 #include <string>
 
 class DBManager {
@@ -19,6 +24,7 @@ public:
 
     bool checkOutVisitor(int visitorId);
     bool listActiveVisitors();
+    bool getActiveVisitorsJson(nlohmann::json& outJson);
 
     void disconnect();
 

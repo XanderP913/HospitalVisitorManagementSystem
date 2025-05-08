@@ -1,66 +1,67 @@
 ﻿#include <iostream>
-#include <string>
-#include <limits>
+#include <httplib.h>
+#include <nlohmann/json.hpp>
 #include "DBManager.h"
 
 int main() {
     DBManager db;
     if (!db.connect()) {
-        std::cerr << "❌ Failed to connect to DB\n";
-        return -1;
+        std::cerr << "❌ DB connection failed\n";
+        return 1;
     }
 
-    while (true) {
-        std::cout << "\n=== Hospital Visitor Management ===\n"
-            << "1) Check In Visitor\n"
-            << "2) Check Out Visitor\n"
-            << "3) List Active Visitors\n"
-            << "4) Exit\n"
-            << "Select an option: ";
+    httplib::Server svr;
+    svr.set_mount_point("/", "./public");
 
-        int choice;
-        if (!(std::cin >> choice)) break;
-        // now that <limits> is included, this compiles:
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    // Health-check endpoint
+    svr.Get("/health", [&](const httplib::Request&, httplib::Response& res) {
+        res.set_content("OK", "text/plain");
+        });
 
-        if (choice == 1) {
-            std::string fn, ln, phone, room;
-            std::cout << "First name: ";   std::getline(std::cin, fn);
-            std::cout << "Last name:  ";   std::getline(std::cin, ln);
-            std::cout << "Phone:      ";   std::getline(std::cin, phone);
-            std::cout << "Room (e.g. 2D-10): ";
-            std::getline(std::cin, room);
-
-            if (db.checkInVisitor(fn, ln, phone, room))
-                std::cout << "✔ Checked in.\n";
-            else
-                std::cout << "✖ Check-in failed.\n";
-
-        }
-        else if (choice == 2) {
-            int id;
-            std::cout << "VisitorID to check out: ";
-            std::cin >> id;
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            if (db.checkOutVisitor(id))
-                std::cout << "✔ Checked out.\n";
-            else
-                std::cout << "✖ Check-out failed.\n";
-
-        }
-        else if (choice == 3) {
-            db.listActiveVisitors();
-
-        }
-        else if (choice == 4) {
-            break;
-
-        }
-        else {
-            std::cout << "Invalid option.\n";
-        }
+    // Check-in endpoint
+    svr.Post("/checkin", [&](const httplib::Request& req, httplib::Response& res) {
+        try {
+        auto j = nlohmann::json::parse(req.body);
+        bool ok = db.checkInVisitor(
+            j.at("firstName"), j.at("lastName"),
+            j.at("phone"), j.at("room")
+        );
+        res.status = ok ? 200 : 500;
+        res.set_content(ok ? "Checked in" : "Error", "text/plain");
     }
+    catch (...) {
+        res.status = 400;
+        res.set_content("Bad request", "text/plain");
+    }
+        });
 
-    std::cout << "Goodbye!\n";
+    // Check-out endpoint
+    svr.Post("/checkout", [&](const httplib::Request& req, httplib::Response& res) {
+        try {
+        auto j = nlohmann::json::parse(req.body);
+        bool ok = db.checkOutVisitor(j.at("visitorId").get<int>());
+        res.status = ok ? 200 : 500;
+        res.set_content(ok ? "Checked out" : "Error", "text/plain");
+    }
+    catch (...) {
+        res.status = 400;
+        res.set_content("Bad request", "text/plain");
+    }
+        });
+
+    // Active visitors endpoint
+    svr.Get("/active", [&](const httplib::Request&, httplib::Response& res) {
+        nlohmann::json out;
+    if (db.getActiveVisitorsJson(out)) {
+        res.set_content(out.dump(2), "application/json");
+    }
+    else {
+        res.status = 500;
+        res.set_content("Error querying DB", "text/plain");
+    }
+        });
+
+    std::cout << "Server running on http://[::]:18080\n";
+    svr.listen("::", 18080);
     return 0;
 }

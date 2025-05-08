@@ -60,8 +60,7 @@ bool DBManager::checkOutVisitor(int visitorId) {
     }
 
     std::ostringstream ss;
-    ss << "UPDATE Visitors SET CheckOutTime = GETDATE() "
-        "WHERE VisitorID = " << visitorId << ";";
+    ss << "UPDATE Visitors SET CheckOutTime = GETDATE() WHERE VisitorID = " << visitorId << ";";
 
     SQLRETURN ret = SQLExecDirectA(stmt, (SQLCHAR*)ss.str().c_str(), SQL_NTS);
     if (!SQL_SUCCEEDED(ret)) {
@@ -96,7 +95,7 @@ bool DBManager::listActiveVisitors() {
         << "------------------------------------------------------\n";
 
     SQLINTEGER id;
-    SQLCHAR fn[51], ln[51], room[11];
+    SQLCHAR fn[51], ln[51], room[64];
     SQL_TIMESTAMP_STRUCT ts;
     SQLBindCol(stmt, 1, SQL_C_SLONG, &id, 0, nullptr);
     SQLBindCol(stmt, 2, SQL_C_CHAR, fn, sizeof(fn), nullptr);
@@ -105,7 +104,7 @@ bool DBManager::listActiveVisitors() {
     SQLBindCol(stmt, 5, SQL_C_TYPE_TIMESTAMP, &ts, 0, nullptr);
 
     while (SQLFetch(stmt) == SQL_SUCCESS) {
-        char buf[64];
+        char buf[32];
         snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d",
             ts.year, ts.month, ts.day, ts.hour, ts.minute);
         std::cout << id << "  | "
@@ -113,6 +112,51 @@ bool DBManager::listActiveVisitors() {
             << ln << "       | "
             << room << " | "
             << buf << "\n";
+    }
+
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    return true;
+}
+
+bool DBManager::getActiveVisitorsJson(nlohmann::json& outJson) {
+    SQLHANDLE stmt = nullptr;
+    if (SQLAllocHandle(SQL_HANDLE_STMT, dbc_, &stmt) != SQL_SUCCESS) {
+        extractError("AllocStmt", dbc_, SQL_HANDLE_DBC);
+        return false;
+    }
+
+    const char* qry =
+        "SELECT VisitorID, FirstName, LastName, PatientRoom, CheckInTime "
+        "FROM Visitors WHERE CheckOutTime IS NULL;";
+    if (!SQL_SUCCEEDED(SQLExecDirectA(stmt, (SQLCHAR*)qry, SQL_NTS))) {
+        extractError("SQLExecDirect", stmt, SQL_HANDLE_STMT);
+        SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+        return false;
+    }
+
+    outJson = nlohmann::json::array();
+    SQLINTEGER id;
+    SQLCHAR fn[51], ln[51], room[64];
+    SQL_TIMESTAMP_STRUCT ts;
+    SQLBindCol(stmt, 1, SQL_C_SLONG, &id, 0, nullptr);
+    SQLBindCol(stmt, 2, SQL_C_CHAR, fn, sizeof(fn), nullptr);
+    SQLBindCol(stmt, 3, SQL_C_CHAR, ln, sizeof(ln), nullptr);
+    SQLBindCol(stmt, 4, SQL_C_CHAR, room, sizeof(room), nullptr);
+    SQLBindCol(stmt, 5, SQL_C_TYPE_TIMESTAMP, &ts, 0, nullptr);
+
+    SQLRETURN fetchRet;
+    while ((fetchRet = SQLFetch(stmt)) == SQL_SUCCESS_WITH_INFO || fetchRet == SQL_SUCCESS) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d",
+            ts.year, ts.month, ts.day, ts.hour, ts.minute);
+
+        outJson.push_back({
+            {"visitorId", id},
+            {"firstName",  std::string((char*)fn)},
+            {"lastName",   std::string((char*)ln)},
+            {"room",       std::string((char*)room)},
+            {"checkIn",    buf}
+            });
     }
 
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -136,4 +180,3 @@ void DBManager::extractError(const char* fn, SQLHANDLE handle, SQLSMALLINT type)
             << ", Msg=" << msg << "\n";
     }
 }
-
